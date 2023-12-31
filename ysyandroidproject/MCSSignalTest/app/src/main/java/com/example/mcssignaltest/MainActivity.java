@@ -143,7 +143,6 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
 
     //通过继承抽象类BDAbstractListener并重写其onReceieveLocation方法来获取定位数据，并将其传给MapView。
     public class MyLocationListener extends BDAbstractLocationListener {
-        private boolean isLocationReceived = false;
         @Override
         public void onReceiveLocation(BDLocation location) {
             int locType = location.getLocType();
@@ -177,11 +176,6 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
 
     //通过LocationClient发起定位
     private void initMyLocation() {
-        try {
-            mLocationClient = new LocationClient(getApplicationContext());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
         //通过LocationClientOption设置LocationClient相关参数
         LocationClientOption option = new LocationClientOption();
         //强制选择高精度定位，三种模式:Hight_Accuracy(高精度）、Battery_Saving(节电模式）、Device_Sensors(传感器模式）
