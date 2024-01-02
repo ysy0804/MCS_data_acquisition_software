@@ -12,6 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MCSSignalTest">
 
+
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"
             android:value="3UGw0nXa4KFONkUTvthb6LiGREmdOBFx" />      <!-- 百度地图AK密钥 -->

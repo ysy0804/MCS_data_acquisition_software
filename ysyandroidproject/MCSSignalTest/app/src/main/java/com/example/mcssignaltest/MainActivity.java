@@ -7,6 +7,11 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 
 import android.app.Application;
@@ -24,10 +29,12 @@ import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.CoordType;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMapOptions;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.BaiduMap;
+import com.baidu.mapapi.map.MyLocationConfiguration;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.model.LatLng;
 
@@ -35,13 +42,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class MainActivity extends AppCompatActivity {           //AppCompatActivity是 Activity 类的一个子类,提供了对旧版本 Android 平台的兼容性支持
+public class MainActivity extends AppCompatActivity{           //AppCompatActivity是 Activity 类的一个子类,提供了对旧版本 Android 平台的兼容性支持
     public LocationClient mLocationClient= null;
     private MyLocationListener myListener = new MyLocationListener();     //创建一个定位监听器类对象
     private MapView mMapView = null;        //百度自定义地图控件
     private BaiduMap baiduMap;              //地图总控制器
     private boolean isFirstLocate = true;     //是否是首次定位
     private TextView positionText;
+    private double lastX = 0.0;
+
+    // 实例化 MyOrientationListener
+    private MyOrientationListener myOrientationListener = new  MyOrientationListener();
+    private float mCurrentDirection;    //此刻的方向
+    private float mCurrentAccracy;      //此刻的精度
+    private double mCurrentLantitude;  //此刻的纬度值
+    private double mCurrentLongtitude;  //此刻的经度值
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +82,7 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
 
         SDKInitializer.setCoordType(CoordType.BD09LL);    //经纬坐标，使用中国国测局的。
 
+
         setContentView(R.layout.activity_main);  //加载布局
 
 
@@ -75,7 +93,22 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         positionText = (TextView) findViewById(R.id.position_text_view);
         List<String> permissionList = new ArrayList<>();//权限列表，记录未允许的权限
 
+
+
+        //设置locationClientOption
+
         baiduMap.setMyLocationEnabled(true);     //开启地图的定位图层
+
+
+        // 创建 MyLocationConfiguration 对象并设置相关属性,enableDirection=true则允许显示方向
+        MyLocationConfiguration config = new MyLocationConfiguration(
+                MyLocationConfiguration.LocationMode.FOLLOWING, // 定位模式为普通态
+                true, // 显示方向信息
+                null,
+                0xAAec2d7a, // 填充颜色
+                0xAA2376b7 // 描边颜色
+        );
+        baiduMap.setMyLocationConfiguration(config);
 
 
         //判断单个权限是否已经允许
@@ -95,7 +128,12 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         } else {
             requestLocation();      //请求位置信息
         }
+
+
+
+
     }
+
 
     //定位请求方法
     private void requestLocation() {
@@ -130,6 +168,8 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     @Override
     protected void onResume() {
         super.onResume();
+        //开始传感器监听
+        myOrientationListener.registerSensorListener();
         //在activity执行onResume时执行mMapView. onResume ()，实现地图生命周期管理
         mMapView.onResume();
     }
@@ -137,12 +177,15 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     @Override
     protected void onPause() {
         super.onPause();
+        //终止传感器监听
+        myOrientationListener.unregisterSensorListener();
         //在activity执行onPause时执行mMapView. onPause ()，实现地图生命周期管理
         mMapView.onPause();
     }
 
+
     //通过继承抽象类BDAbstractListener并重写其onReceieveLocation方法来获取定位数据，并将其传给MapView。
-    public class MyLocationListener extends BDAbstractLocationListener {
+    public class MyLocationListener extends BDAbstractLocationListener  {
         @Override
         public void onReceiveLocation(BDLocation location) {
             int locType = location.getLocType();
@@ -151,13 +194,18 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
             if (location == null || mMapView == null) {             //判断 location 和 mMapView 是否为空来确保在地图视图销毁后不再处理新接收的位置
                 return;
             }
+            mCurrentLongtitude = location.getLongitude();
+            mCurrentLantitude = location.getLatitude();
+            mCurrentAccracy = location.getRadius();
+
             MyLocationData locData = new MyLocationData.Builder()       //通过 Builder 模式，设置位置的精度、方向、纬度和经度等属性。
                     .accuracy(location.getRadius())
                     // 此处设置开发者获取到的方向信息，顺时针0-360
-                    .direction(location.getDirection())
+                    .direction(mCurrentDirection)
                     .latitude(location.getLatitude())
                     .longitude(location.getLongitude())
                     .build();
+
             baiduMap.setMyLocationData(locData);                //将新的位置信息更新到地图上，以显示当前设备的位置
 
             if (isFirstLocate) {
@@ -170,9 +218,57 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
                 baiduMap.animateMapStatus(update);              //动画更新缩放级别
                 isFirstLocate = false;
             }
-
         }
+
     }
+
+
+    //自定义传感器监听器类
+    public  class MyOrientationListener implements SensorEventListener{
+        private SensorManager sensorManager;
+
+        //注册传感器监听器方法
+        public void registerSensorListener() {
+            sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+            sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                    SensorManager.SENSOR_DELAY_UI);
+        }
+
+
+        // 关闭传感器监听器的方法
+        public void unregisterSensorListener() {
+            sensorManager.unregisterListener(this);
+        }
+
+        // 监听传感器变化事件，当传感器数值发生变化时，该方法被调用
+        public void onSensorChanged(SensorEvent sensorEvent) {
+
+            // 读取传感器数值中的 x 轴方向的值
+            double x = sensorEvent.values[SensorManager.DATA_X];
+            // 判断当前 x 轴方向的值与上一次记录的值之间的差值是否超过了 1.0，如果超过了 1.0，更新当前方向为新的 x 轴方向的值。
+            if (Math.abs(x - lastX) > 1.0) {
+                mCurrentDirection = (float) x;
+            // 构造定位图层数据
+                MyLocationData  myLocationData = new MyLocationData.Builder()
+                        .accuracy(mCurrentDirection)
+                        // 此处设置开发者获取到的方向信息，顺时针0-360
+                        .direction(mCurrentDirection)
+                        .latitude(mCurrentLantitude)
+                        .longitude(mCurrentLongtitude).build();
+                // 设置定位图层数据
+                baiduMap.setMyLocationData(myLocationData);
+            }
+            // 将当前 x 轴方向的值记录为上一次的值，用于下一次比较
+            lastX = x;
+        }
+
+
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+            // 传感器精度变化时的回调方法
+        }
+
+    }
+
 
     //通过LocationClient发起定位
     private void initMyLocation() {
@@ -184,10 +280,11 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         option.setCoorType("bd09ll"); // 设置坐标类型
         option.setScanSpan(1000);           //设置位置更新间隔，1s一更新
 
-        //设置locationClientOption
         mLocationClient.setLocOption(option);
 
+
    }
+
 
     @Override
     protected void onDestroy() {
