@@ -1,49 +1,45 @@
 package com.example.mcssignaltest;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
-import androidx.customview.widget.ViewDragHelper;
 import androidx.appcompat.widget.Toolbar;
 import androidx.databinding.DataBindingUtil;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 
-import android.app.Application;
+import android.os.Handler;
+import android.telephony.PhoneStateListener;
+import android.telephony.SignalStrength;
+import android.telephony.TelephonyManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
 
 
-import com.baidu.location.Address;
 import com.baidu.location.BDAbstractLocationListener;
 import com.baidu.location.BDLocation;
-import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.CoordType;
 import com.baidu.mapapi.SDKInitializer;
-import com.baidu.mapapi.map.BaiduMapOptions;
-import com.baidu.mapapi.map.BitmapDescriptorFactory;
-import com.baidu.mapapi.map.MapStatus;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
@@ -58,7 +54,8 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import android.animation.ObjectAnimator;
 
 
-
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,12 +68,15 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
     private BaiduMap baiduMap;              //地图总控制器
     private boolean isFirstLocate = true;     //是否是首次定位
     private TextView positionText;
+    private TextView ShowLatitude;    //打印纬度值
+    private TextView ShowLongtitude;    //打印经度值
+    private TextView ShowCellSignalStrength;    //打印蜂窝网络信号强度值
     private double lastX = 0.0;
 
     // 实例化 MyOrientationListener
     private MyOrientationListener myOrientationListener = new  MyOrientationListener();
-    private float mCurrentDirection;    //此刻的方向
-    private float mCurrentAccracy;      //此刻的精度
+    public float mCurrentDirection;    //此刻的方向
+    public float mCurrentAccracy;      //此刻的精度
     public double mCurrentLantitude;  //此刻的纬度值
     public double mCurrentLongtitude;  //此刻的经度值
 
@@ -89,6 +89,16 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
     private int initialCardTop;
     private boolean isCardVisible = true;
     private DrawerLayout mDrawerLayout;    //滑动菜单布局
+
+
+    private SignalStrength signalStrength;
+    private TelephonyManager telephonyManager;
+    private PhoneStateListener mListener;
+    private final static String LTE_TAG             = "LTE_Tag";
+    private final static String LTE_SIGNAL_STRENGTH = "getCellSignalStrengths";
+    private Handler handler;       //定时器
+    private Runnable runnable;
+    private final long INTERVAL = 5000; // 每隔5秒获取一次信号强度值
 
 
     @Override
@@ -115,7 +125,11 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
 
         setContentView(R.layout.activity_main);  //加载布局
+
+        //绑定
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        binding.setMainActivity(this);
+
 
         //标题栏
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -151,7 +165,13 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         baiduMap = mMapView.getMap();
 
 
+
+        ShowLatitude = findViewById(R.id.latitude);
+        ShowLongtitude = findViewById(R.id.longtitude);
+        ShowCellSignalStrength = findViewById(R.id.CellSignal);
+
         positionText = (TextView) findViewById(R.id.position_text_view);
+
         List<String> permissionList = new ArrayList<>();//权限列表，记录未允许的权限
 
 
@@ -188,7 +208,6 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         } else {
             requestLocation();      //请求位置信息
         }
-
 
 
         //卡片属性动画，滑动隐藏
@@ -230,7 +249,75 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
                 return false;
             }
         });
+
+
+        //启动设备状态监听
+        telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+
+
+        //监听蜂窝网络信号强度
+        mListener = new PhoneStateListener()
+        {
+            @Override
+            public void onSignalStrengthsChanged(SignalStrength sStrength)
+            {
+                signalStrength = sStrength;
+                System.out.println("信号强度 = " +  sStrength);
+                getLTEsignalStrength();
+            }
+
+        };
+
+        //注册监听器
+        telephonyManager.listen(mListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+
+        handler = new Handler();
+        runnable = new Runnable() {
+            @Override
+            public void run() {
+                //定时获取
+                getLTEsignalStrength();
+            }
+        };
+        //启动计时器
+        handler.postDelayed(runnable, INTERVAL);
     }
+
+    //获取设备蜂窝网络信号强度值
+    private void getLTEsignalStrength(){
+        try
+        {
+            Method[] methods = android.telephony.SignalStrength.class.getMethods();
+            for (Method mthd : methods)
+            {
+
+                if (mthd.getName().equals(LTE_SIGNAL_STRENGTH))
+                {
+                    Object result = mthd.invoke(signalStrength);
+                    System.out.println("信号强度 = " + result);
+                    if (result instanceof List) {
+                        List<?> signalStrengthList = (List<?>) result;
+                        for (Object obj : signalStrengthList) {
+                            if (obj instanceof android.telephony.CellSignalStrengthLte) {
+                                android.telephony.CellSignalStrengthLte lteSignalStrength = (android.telephony.CellSignalStrengthLte) obj;
+                                int rsrpValue;
+                                    Method getRsrpMethod = lteSignalStrength.getClass().getMethod("getRsrp");
+                                    rsrpValue = (int) getRsrpMethod.invoke(lteSignalStrength);
+                                    System.out.println("信号强度 = " +  rsrpValue);
+                                    ShowCellSignalStrength.setText(String.valueOf(rsrpValue)+"dBm");
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Log.e(LTE_TAG, "Exception: " + e.toString());
+        }
+    }
+
 
 
 
@@ -307,6 +394,7 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         super.onResume();
         //开始传感器监听
         myOrientationListener.registerSensorListener();
+
         //在activity执行onResume时执行mMapView. onResume ()，实现地图生命周期管理
         mMapView.onResume();
     }
@@ -316,6 +404,7 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         super.onPause();
         //终止传感器监听
         myOrientationListener.unregisterSensorListener();
+        handler.removeCallbacks(runnable);
         //在activity执行onPause时执行mMapView. onPause ()，实现地图生命周期管理
         mMapView.onPause();
     }
@@ -334,6 +423,10 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
             mCurrentLongtitude = location.getLongitude();
             mCurrentLantitude = location.getLatitude();
             mCurrentAccracy = location.getRadius();
+
+            //在卡片上显示经纬度值
+            ShowLatitude.setText(String.format("%.4f",mCurrentLantitude));
+            ShowLongtitude.setText(String.format("%.4f",mCurrentLongtitude));
 
             MyLocationData locData = new MyLocationData.Builder()       //通过 Builder 模式，设置位置的精度、方向、纬度和经度等属性。
                     .accuracy(location.getRadius())
@@ -415,7 +508,7 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         option.setLocationMode(LocationClientOption.LocationMode.Device_Sensors);
         option.setOpenGps(true); // 打开gps
         option.setCoorType("bd09ll"); // 设置坐标类型
-        option.setScanSpan(1000);           //设置位置更新间隔，1s一更新
+        option.setScanSpan(4000);           //设置位置更新间隔，1s一更新
 
         mLocationClient.setLocOption(option);
 
