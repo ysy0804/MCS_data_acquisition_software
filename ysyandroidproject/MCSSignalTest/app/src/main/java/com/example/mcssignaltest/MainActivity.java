@@ -1,8 +1,15 @@
 package com.example.mcssignaltest;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.customview.widget.ViewDragHelper;
+import androidx.appcompat.widget.Toolbar;
+import androidx.databinding.DataBindingUtil;
+import androidx.drawerlayout.widget.DrawerLayout;
 
 import android.Manifest;
 import android.content.Context;
@@ -15,6 +22,12 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 
 import android.app.Application;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewConfiguration;
+import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
@@ -30,6 +43,7 @@ import com.baidu.mapapi.CoordType;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMapOptions;
 import com.baidu.mapapi.map.BitmapDescriptorFactory;
+import com.baidu.mapapi.map.MapStatus;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
@@ -37,12 +51,20 @@ import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.MyLocationConfiguration;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.model.LatLng;
+import com.example.mcssignaltest.databinding.ActivityMainBinding;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import android.animation.ObjectAnimator;
+
+
 
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity{           //AppCompatActivity是 Activity 类的一个子类,提供了对旧版本 Android 平台的兼容性支持
+    private ActivityMainBinding binding;
     public LocationClient mLocationClient= null;
     private MyLocationListener myListener = new MyLocationListener();     //创建一个定位监听器类对象
     private MapView mMapView = null;        //百度自定义地图控件
@@ -55,9 +77,18 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
     private MyOrientationListener myOrientationListener = new  MyOrientationListener();
     private float mCurrentDirection;    //此刻的方向
     private float mCurrentAccracy;      //此刻的精度
-    private double mCurrentLantitude;  //此刻的纬度值
-    private double mCurrentLongtitude;  //此刻的经度值
+    public double mCurrentLantitude;  //此刻的纬度值
+    public double mCurrentLongtitude;  //此刻的经度值
 
+
+    private MaterialCardView cardView;    //卡片对象，用于引用卡片视图
+    private int cardHeight;
+    private int screenHeight;
+
+    private float startY;
+    private int initialCardTop;
+    private boolean isCardVisible = true;
+    private DrawerLayout mDrawerLayout;    //滑动菜单布局
 
 
     @Override
@@ -84,15 +115,44 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
 
         setContentView(R.layout.activity_main);  //加载布局
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
 
+        //标题栏
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        //滑动菜单布局
+        mDrawerLayout = (DrawerLayout)findViewById(R.id.drawer_layout);
+        ActionBar actionBar = getSupportActionBar();
+        if(actionBar != null){
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setHomeAsUpIndicator(R.drawable.ic_menu);
+        }
+
+
+        //浮动按钮返回当前位置
+        FloatingActionButton fab = findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v){
+                isFirstLocate = true;     //是否是首次定位
+            }
+        });
+
+        //获取卡片引用
+        cardView =(MaterialCardView)findViewById(R.id.card_view);
 
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
+
+        //撤去百度地图logo
+        mMapView.removeViewAt(1);
+
+        //获取地图引用
         baiduMap = mMapView.getMap();
+
 
         positionText = (TextView) findViewById(R.id.position_text_view);
         List<String> permissionList = new ArrayList<>();//权限列表，记录未允许的权限
-
 
 
         //设置locationClientOption
@@ -102,7 +162,7 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
         // 创建 MyLocationConfiguration 对象并设置相关属性,enableDirection=true则允许显示方向
         MyLocationConfiguration config = new MyLocationConfiguration(
-                MyLocationConfiguration.LocationMode.FOLLOWING, // 定位模式为普通态
+                MyLocationConfiguration.LocationMode.NORMAL, // 定位模式为普通态
                 true, // 显示方向信息
                 null,
                 0xAAec2d7a, // 填充颜色
@@ -131,7 +191,84 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
 
 
+        //卡片属性动画，滑动隐藏
+        cardHeight = cardView.getHeight();
+        screenHeight = getResources().getDisplayMetrics().heightPixels;
 
+
+        cardView.setOnTouchListener(new View.OnTouchListener() {
+
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        // 记录手指按下时的初始坐标
+                        startY = event.getRawY();
+                        initialCardTop = cardView.getTop();
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        float deltaYUp = event.getRawY() - startY;
+                        float touchSlop = ViewConfiguration.get(getApplicationContext()).getScaledTouchSlop();
+                        if (Math.abs(deltaYUp) >= touchSlop) {
+                            if (isCardVisible) {
+                                if (deltaYUp >= cardHeight / 2) {
+                                    hideCard();
+                                } else {
+                                    showCard();
+                                }
+                            } else {
+                                if (deltaYUp <= -cardHeight / 2) {
+                                    showCard();
+                                } else {
+                                    hideCard();
+                                }
+                            }
+                        }
+                        return true;
+                }
+                return false;
+            }
+        });
+    }
+
+
+
+    //标题栏按钮触发事件
+    public boolean onCreateOptionsMenu(Menu menu){
+        getMenuInflater().inflate(R.menu.toolbar, menu);
+        return true;
+    }
+
+    public boolean  onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.backup :
+                isFirstLocate = true;     //是否是首次定位
+                Toast.makeText(this,"you clicked backup", Toast.LENGTH_SHORT).show();
+                break;
+                //滑动菜单
+            case android.R.id.home:
+                mDrawerLayout.openDrawer(GravityCompat.START);
+                break;
+        }
+        return true;
+    }
+
+
+    //卡片隐藏动画
+    private void hideCard() {
+        ObjectAnimator animator = ObjectAnimator.ofFloat(cardView, "translationY", 0, 600);
+        animator.setDuration(300);
+        animator.start();
+        isCardVisible = false;
+    }
+
+    //卡片弹出动画
+    private void showCard() {
+        ObjectAnimator animator = ObjectAnimator.ofFloat(cardView, "translationY", 600, 0);
+        animator.setDuration(200);
+        animator.start();
+        isCardVisible = true;
     }
 
 
@@ -200,7 +337,7 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
             MyLocationData locData = new MyLocationData.Builder()       //通过 Builder 模式，设置位置的精度、方向、纬度和经度等属性。
                     .accuracy(location.getRadius())
-                    // 此处设置开发者获取到的方向信息，顺时针0-360
+                    // 从传感器拿到方向信息
                     .direction(mCurrentDirection)
                     .latitude(location.getLatitude())
                     .longitude(location.getLongitude())
@@ -250,7 +387,7 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
                 mCurrentDirection = (float) x;
             // 构造定位图层数据
                 MyLocationData  myLocationData = new MyLocationData.Builder()
-                        .accuracy(mCurrentDirection)
+                        .accuracy(mCurrentAccracy)
                         // 此处设置开发者获取到的方向信息，顺时针0-360
                         .direction(mCurrentDirection)
                         .latitude(mCurrentLantitude)

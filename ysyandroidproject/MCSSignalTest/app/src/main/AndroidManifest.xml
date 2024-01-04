@@ -13,6 +13,7 @@
         android:theme="@style/Theme.MCSSignalTest">
 
 
+
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"
             android:value="3UGw0nXa4KFONkUTvthb6LiGREmdOBFx" />      <!-- 百度地图AK密钥 -->
@@ -23,7 +24,8 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:label="感知终端">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
