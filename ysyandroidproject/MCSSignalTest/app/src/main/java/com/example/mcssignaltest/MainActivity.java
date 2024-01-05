@@ -1,5 +1,6 @@
 package com.example.mcssignaltest;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -18,7 +19,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+
 
 import android.os.Handler;
 import android.telephony.PhoneStateListener;
@@ -50,19 +54,23 @@ import com.baidu.mapapi.model.LatLng;
 import com.example.mcssignaltest.databinding.ActivityMainBinding;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
 
 import android.animation.ObjectAnimator;
 
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
 
-public class MainActivity extends AppCompatActivity{           //AppCompatActivity是 Activity 类的一个子类,提供了对旧版本 Android 平台的兼容性支持
+public class MainActivity extends AppCompatActivity {           //AppCompatActivity是 Activity 类的一个子类,提供了对旧版本 Android 平台的兼容性支持
     private ActivityMainBinding binding;
-    public LocationClient mLocationClient= null;
+    public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();     //创建一个定位监听器类对象
     private MapView mMapView = null;        //百度自定义地图控件
     private BaiduMap baiduMap;              //地图总控制器
@@ -71,14 +79,16 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
     private TextView ShowLatitude;    //打印纬度值
     private TextView ShowLongtitude;    //打印经度值
     private TextView ShowCellSignalStrength;    //打印蜂窝网络信号强度值
+    private TextView ShowEquipMessage;    //打印经度值
     private double lastX = 0.0;
 
     // 实例化 MyOrientationListener
-    private MyOrientationListener myOrientationListener = new  MyOrientationListener();
+    private MyOrientationListener myOrientationListener = new MyOrientationListener();
     public float mCurrentDirection;    //此刻的方向
     public float mCurrentAccracy;      //此刻的精度
     public double mCurrentLantitude;  //此刻的纬度值
     public double mCurrentLongtitude;  //此刻的经度值
+    private float AverageTime;  //连通性时延
 
 
     private MaterialCardView cardView;    //卡片对象，用于引用卡片视图
@@ -94,13 +104,20 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
     private SignalStrength signalStrength;
     private TelephonyManager telephonyManager;
     private PhoneStateListener mListener;
-    private final static String LTE_TAG             = "LTE_Tag";
+    private final static String LTE_TAG = "LTE_Tag";
     private final static String LTE_SIGNAL_STRENGTH = "getCellSignalStrengths";
     private Handler handler;       //定时器
     private Runnable runnable;
     private final long INTERVAL = 5000; // 每隔5秒获取一次信号强度值
 
 
+
+    private static final String PING_COMMAND = "/system/bin/ping";
+    private static final int PING_TIMEOUT = 5; // Ping超时时间，单位为秒
+    private static final int PING_COUNT = 5;   // Ping次数
+
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         //定位监视器
@@ -116,7 +133,6 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         }
 
         mLocationClient.registerLocationListener(myListener);
-
 
 
         SDKInitializer.initialize(getApplicationContext());//一定要先初始化，再加载布局
@@ -136,9 +152,9 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         setSupportActionBar(toolbar);
 
         //滑动菜单布局
-        mDrawerLayout = (DrawerLayout)findViewById(R.id.drawer_layout);
+        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBar actionBar = getSupportActionBar();
-        if(actionBar != null){
+        if (actionBar != null) {
             actionBar.setDisplayHomeAsUpEnabled(true);
             actionBar.setHomeAsUpIndicator(R.drawable.ic_menu);
         }
@@ -146,14 +162,14 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
         //浮动按钮返回当前位置
         FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener(){
-            public void onClick(View v){
+        fab.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
                 isFirstLocate = true;     //是否是首次定位
             }
         });
 
         //获取卡片引用
-        cardView =(MaterialCardView)findViewById(R.id.card_view);
+        cardView = (MaterialCardView) findViewById(R.id.card_view);
 
         //获取地图控件引用
         mMapView = (MapView) findViewById(R.id.bmapView);
@@ -165,11 +181,16 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
         baiduMap = mMapView.getMap();
 
 
-
         ShowLatitude = findViewById(R.id.latitude);
         ShowLongtitude = findViewById(R.id.longtitude);
         ShowCellSignalStrength = findViewById(R.id.CellSignal);
 
+
+        ShowEquipMessage = findViewById(R.id.EquipMessList);
+
+        float lineSpacingExtra = 10f;  // 行间距的像素值
+        float lineSpacingMultiplier = 1.2f;  // 行间距的倍数
+        ShowEquipMessage.setLineSpacing(lineSpacingExtra, lineSpacingMultiplier);
         positionText = (TextView) findViewById(R.id.position_text_view);
 
         List<String> permissionList = new ArrayList<>();//权限列表，记录未允许的权限
@@ -253,16 +274,13 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
         //启动设备状态监听
         telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-
+        getDeviceInfo();
 
         //监听蜂窝网络信号强度
-        mListener = new PhoneStateListener()
-        {
+        mListener = new PhoneStateListener() {
             @Override
-            public void onSignalStrengthsChanged(SignalStrength sStrength)
-            {
+            public void onSignalStrengthsChanged(SignalStrength sStrength) {
                 signalStrength = sStrength;
-                System.out.println("信号强度 = " +  sStrength);
                 getLTEsignalStrength();
             }
 
@@ -284,42 +302,86 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
     }
 
     //获取设备蜂窝网络信号强度值
-    private void getLTEsignalStrength(){
-        try
-        {
+    private void getLTEsignalStrength() {
+        try {
             Method[] methods = android.telephony.SignalStrength.class.getMethods();
-            for (Method mthd : methods)
-            {
+            for (Method mthd : methods) {
 
-                if (mthd.getName().equals(LTE_SIGNAL_STRENGTH))
-                {
+                if (mthd.getName().equals(LTE_SIGNAL_STRENGTH)) {
                     Object result = mthd.invoke(signalStrength);
-                    System.out.println("信号强度 = " + result);
                     if (result instanceof List) {
                         List<?> signalStrengthList = (List<?>) result;
                         for (Object obj : signalStrengthList) {
                             if (obj instanceof android.telephony.CellSignalStrengthLte) {
                                 android.telephony.CellSignalStrengthLte lteSignalStrength = (android.telephony.CellSignalStrengthLte) obj;
                                 int rsrpValue;
-                                    Method getRsrpMethod = lteSignalStrength.getClass().getMethod("getRsrp");
-                                    rsrpValue = (int) getRsrpMethod.invoke(lteSignalStrength);
-                                    System.out.println("信号强度 = " +  rsrpValue);
-                                    ShowCellSignalStrength.setText(String.valueOf(rsrpValue)+"dBm");
+                                Method getRsrpMethod = lteSignalStrength.getClass().getMethod("getRsrp");
+                                rsrpValue = (int) getRsrpMethod.invoke(lteSignalStrength);
+                                ShowCellSignalStrength.setText(String.valueOf(rsrpValue) + "dBm");
                             }
                         }
                     }
                     return;
                 }
             }
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             Log.e(LTE_TAG, "Exception: " + e.toString());
         }
     }
 
 
+    //设备信息与网络信息提取
+    private void getDeviceInfo() {
+        // 设备运营商名称
+        String networkOperatorName = telephonyManager.getNetworkOperatorName();
+        System.out.println("运营商名称: " + networkOperatorName);
 
+        // 设备品牌
+        String deviceBrand = android.os.Build.BRAND;
+        System.out.println("设备品牌名称: " + deviceBrand);
+
+        // 设备型号
+        String deviceModel = android.os.Build.MODEL;
+        System.out.println("设备型号: " + deviceModel);
+
+        // 网络类型
+        String networkType = "";
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        if (telephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_IDEN) {
+            networkType = "2G";
+        } else if (telephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSPAP) {
+            networkType = "3G";
+        } else if (telephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_LTE) {
+            networkType = "4G";
+        }else if (telephonyManager.getNetworkType() == TelephonyManager.NETWORK_TYPE_NR) {
+            networkType = "5G";
+        }else  {
+            System.out.println("未知");
+        }
+            System.out.println("网络类型: "+ networkType);
+
+
+        // SIM卡国别
+        String simCountry = telephonyManager.getSimCountryIso();
+        System.out.println("SIM卡国别: " + simCountry);
+
+
+        // SIM卡当前状态
+        String deviceStatus = telephonyManager.getSimState() == TelephonyManager.SIM_STATE_READY ? "Ready" : "Not Ready";
+        System.out.println("SIM卡当前状态: " + deviceStatus);
+
+        ShowEquipMessage.setText("运营商名称: " + networkOperatorName+'\n'+"设备品牌名称: " + deviceBrand+'\n'+"设备型号: " + deviceModel
+        +'\n'+"网络类型: "+ networkType+'\n'+"SIM卡国别: " + simCountry+'\n'+"SIM卡当前状态: " + deviceStatus);
+    }
 
     //标题栏按钮触发事件
     public boolean onCreateOptionsMenu(Menu menu){
@@ -329,9 +391,21 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
     public boolean  onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            //Ping连通性测试模块
             case R.id.backup :
-                isFirstLocate = true;     //是否是首次定位
-                Toast.makeText(this,"you clicked backup", Toast.LENGTH_SHORT).show();
+                PingTask pingTask = new PingTask("www.baidu.com", new PingTask.PingCallback() {
+                    @Override
+                    public void onPingResult(boolean isSuccessful, float averageTime) {
+                        if (isSuccessful) {
+                            System.out.println("连接成功，平均时延: " + averageTime + "ms");
+                            AverageTime = averageTime;
+                        } else {
+                            System.out.println("连接失败");
+                        }
+                    }
+                });
+                pingTask.execute();
+                Toast.makeText(this,"连接成功，平均时延: " + AverageTime + "ms", Toast.LENGTH_SHORT).show();
                 break;
                 //滑动菜单
             case android.R.id.home:
@@ -425,8 +499,8 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
             mCurrentAccracy = location.getRadius();
 
             //在卡片上显示经纬度值
-            ShowLatitude.setText(String.format("%.4f",mCurrentLantitude));
-            ShowLongtitude.setText(String.format("%.4f",mCurrentLongtitude));
+            ShowLatitude.setText(String.format("%.2f",mCurrentLantitude));
+            ShowLongtitude.setText(String.format("%.2f",mCurrentLongtitude));
 
             MyLocationData locData = new MyLocationData.Builder()       //通过 Builder 模式，设置位置的精度、方向、纬度和经度等属性。
                     .accuracy(location.getRadius())
@@ -514,6 +588,88 @@ public class MainActivity extends AppCompatActivity{           //AppCompatActivi
 
 
    }
+
+
+    //Ping命令测试
+    private static class PingTask extends AsyncTask<Void, Void, Boolean> {
+        private String host;
+        private PingCallback callback;
+
+        public PingTask(String host, PingCallback callback) {
+            this.host = host;
+            this.callback = callback;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... voids) {
+            try {
+                ProcessBuilder processBuilder = new ProcessBuilder(
+                        PING_COMMAND,
+                        "-c",
+                        String.valueOf(PING_COUNT),
+                        "-W",
+                        String.valueOf(PING_TIMEOUT),
+                        host
+                );
+
+
+                // 启动进程执行 ping 命令
+                Process process = processBuilder.start();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+                String line;
+                int receivedCount = 0;
+                int lostCount = 0;
+                float totalTime = 0;
+
+
+
+                // 逐行读取命令输出
+                while ((line = reader.readLine()) != null) {
+                    if (line.contains("icmp_seq")) {
+                        // 解析包含时间信息的行
+                        int startIndex = line.indexOf("time=");
+                        int endIndex = line.indexOf("ms");
+                        if (startIndex != -1 && endIndex != -1) {
+                            // 提取时间字符串并转换为浮点数
+                            String timeString = line.substring(startIndex + 5, endIndex).trim();
+                            float time = Float.parseFloat(timeString);
+                            totalTime += time;
+                            receivedCount++;
+                        } else {
+                            lostCount++;
+                        }
+                    }
+                }
+
+                reader.close();
+                process.waitFor();
+
+                if (receivedCount > 0) {
+                    // 计算平均时间
+                    float averageTime = totalTime / receivedCount;
+                    // 回调通知 Ping 结果
+                    callback.onPingResult(true, averageTime);
+                    return true;
+                } else {
+                    callback.onPingResult(false, 0);
+                    return false;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            callback.onPingResult(false, 0);
+            return false;
+        }
+
+        public interface PingCallback {
+            void onPingResult(boolean isSuccessful, float averageTime);
+        }
+    }
+
 
 
     @Override
