@@ -25,6 +25,7 @@ import android.os.Bundle;
 
 
 import android.os.Handler;
+import android.os.Looper;
 import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
@@ -44,12 +45,16 @@ import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.CoordType;
 import com.baidu.mapapi.SDKInitializer;
+import com.baidu.mapapi.map.BitmapDescriptor;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.BaiduMap;
+import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationConfiguration;
 import com.baidu.mapapi.map.MyLocationData;
+import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
 import com.example.mcssignaltest.databinding.ActivityMainBinding;
 import com.google.android.material.card.MaterialCardView;
@@ -66,6 +71,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class MainActivity extends AppCompatActivity {           //AppCompatActivity是 Activity 类的一个子类,提供了对旧版本 Android 平台的兼容性支持
@@ -81,9 +88,13 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     private TextView ShowCellSignalStrength;    //打印蜂窝网络信号强度值
     private TextView ShowEquipMessage;    //打印经度值
     private double lastX = 0.0;
+    private int laststep;
+
 
     // 实例化 MyOrientationListener
     private MyOrientationListener myOrientationListener = new MyOrientationListener();
+    //实例化MySTEPListener
+//    private MySTEPListener mySTEPListener = new MySTEPListener();
     public float mCurrentDirection;    //此刻的方向
     public float mCurrentAccracy;      //此刻的精度
     public double mCurrentLantitude;  //此刻的纬度值
@@ -103,18 +114,32 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
 
     private SignalStrength signalStrength;
     private TelephonyManager telephonyManager;
-    private PhoneStateListener mListener;
+//    private SensorManager SensorManager;        //传感器对象
+//    private Sensor Sensor;
+    private static final float THRESHOLD = 10f; // 步行动作的阈值
+    private int stepCount = 0; // 步数计数器
+    private PhoneStateListener mListener;           //手机状态监听对象
     private final static String LTE_TAG = "LTE_Tag";
     private final static String LTE_SIGNAL_STRENGTH = "getCellSignalStrengths";
     private Handler handler;       //定时器
     private Runnable runnable;
-    private final long INTERVAL = 5000; // 每隔5秒获取一次信号强度值
+    private final long INTERVAL = 3000; // 每隔3秒获取一次信号强度值
 
 
 
     private static final String PING_COMMAND = "/system/bin/ping";
     private static final int PING_TIMEOUT = 5; // Ping超时时间，单位为秒
     private static final int PING_COUNT = 5;   // Ping次数
+
+    private boolean isTime = true;
+    private int rsrpValue;              //网络信号强度
+    private Timer timer;
+    private Timer timerisStopStep;     //判断是否停驻的计时器
+    private TimerTask task;
+    private TimerTask taskisSopStep;
+    private int collectsignaltimes=0;     //从程序运行开始采集信号的次数
+    private int DurCollectSignal = 10000;           //两次采集信号的时间间隔
+    private boolean isStopStep = false;
 
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -274,6 +299,9 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
 
         //启动设备状态监听
         telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+
+
+
         getDeviceInfo();
 
         //监听蜂窝网络信号强度
@@ -289,20 +317,16 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         //注册监听器
         telephonyManager.listen(mListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
 
-        handler = new Handler();
-        runnable = new Runnable() {
-            @Override
-            public void run() {
-                //定时获取
-                getLTEsignalStrength();
-            }
-        };
-        //启动计时器
-        handler.postDelayed(runnable, INTERVAL);
+        handler = new Handler(Looper.getMainLooper());
+
+//        mySTEPListener.registerSensorListener();
+        StrengthCollection();
+
+
     }
 
     //获取设备蜂窝网络信号强度值
-    private void getLTEsignalStrength() {
+    private int getLTEsignalStrength() {
         try {
             Method[] methods = android.telephony.SignalStrength.class.getMethods();
             for (Method mthd : methods) {
@@ -314,20 +338,173 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
                         for (Object obj : signalStrengthList) {
                             if (obj instanceof android.telephony.CellSignalStrengthLte) {
                                 android.telephony.CellSignalStrengthLte lteSignalStrength = (android.telephony.CellSignalStrengthLte) obj;
-                                int rsrpValue;
+
                                 Method getRsrpMethod = lteSignalStrength.getClass().getMethod("getRsrp");
                                 rsrpValue = (int) getRsrpMethod.invoke(lteSignalStrength);
                                 ShowCellSignalStrength.setText(String.valueOf(rsrpValue) + "dBm");
+
+
+//                                //定义Maker坐标点
+//                                LatLng point = new LatLng(mCurrentLantitude, mCurrentLongtitude);
+//                                //构建Marker图标
+//
+//
+//                                if (rsrpValue > -80) {
+//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+//                                            .fromResource(R.drawable.location_on_1);
+//                                    //构建MarkerOption，用于在地图上添加Marker
+//                                    OverlayOptions option = new MarkerOptions()
+//                                            .position(point)
+//                                            .icon(bitmap);
+//                                    //在地图上添加Marker，并显示
+//                                    baiduMap.addOverlay(option);
+//                                } else if (rsrpValue > -90 && rsrpValue <= -80) {
+//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+//                                            .fromResource(R.drawable.location_on_3);
+//                                    //构建MarkerOption，用于在地图上添加Marker
+//                                    OverlayOptions option = new MarkerOptions()
+//                                            .position(point)
+//                                            .icon(bitmap);
+//                                    //在地图上添加Marker，并显示
+//                                    baiduMap.addOverlay(option);
+//                                } else if (rsrpValue > -100 && rsrpValue <= -90) {
+//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+//                                            .fromResource(R.drawable.location_on_2);
+//                                    //构建MarkerOption，用于在地图上添加Marker
+//                                    OverlayOptions option = new MarkerOptions()
+//                                            .position(point)
+//                                            .icon(bitmap);
+//                                    //在地图上添加Marker，并显示
+//                                    baiduMap.addOverlay(option);
+//                                } else if (rsrpValue <= -100) {
+//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+//                                            .fromResource(R.drawable.location_on_4);
+//                                    //构建MarkerOption，用于在地图上添加Marker
+//                                    OverlayOptions option = new MarkerOptions()
+//                                            .position(point)
+//                                            .icon(bitmap);
+//                                    //在地图上添加Marker，并显示
+//                                    baiduMap.addOverlay(option);
+//                                }
                             }
                         }
+
                     }
-                    return;
+                    return rsrpValue;
                 }
             }
         } catch (Exception e) {
             Log.e(LTE_TAG, "Exception: " + e.toString());
         }
+
+        return 0;
     }
+
+
+    //采样
+    private void StrengthCollection(){
+        timer = new Timer();
+        task = new TimerTask() {
+                           @Override
+                           public void run() {
+                               // 获取网络信号强度
+                            int mCurrentSign = getLTEsignalStrength();
+                                collectsignaltimes++;
+                                System.out.println("采集次数"+collectsignaltimes);
+                               updateSignalMarker(mCurrentSign);     //在地图上标记
+                                }
+                           };
+        timer.schedule( task, 0,  10000);   //启动任务，初始时间间隔为1s
+
+
+        //采样频率自适应调整
+        timerisStopStep = new Timer();
+        taskisSopStep = new TimerTask() {
+            @Override
+            public void run() {
+                    if (Math.abs(stepCount - laststep) < 20) {      //如果一定时间间隔步数少于20
+                        DurCollectSignal *= 3;                    //采样频率降低
+                        task.cancel();                          //注销任务
+                        task = new TimerTask() {
+                            @Override
+                            public void run() {
+                                // 获取网络信号强度
+                                int mCurrentSign = getLTEsignalStrength();
+                                collectsignaltimes++;
+                                System.out.println("采集次数"+collectsignaltimes);
+                                updateSignalMarker(mCurrentSign);
+                            }
+                        };
+                        timer.schedule(task,0,DurCollectSignal);             //重新启动任务，时间间隔调整为新频率
+                        System.out.println("时间间隔" + DurCollectSignal);
+                    }
+                    System.out.println("时间间隔" + DurCollectSignal + "   " + laststep + "   " + stepCount);
+                    // 将当前步数记录为上一次的值，用于下一次比较
+                    laststep = stepCount;
+                    if(Math.abs(stepCount - laststep) >= 20){                               //如果步数大于20步
+                        DurCollectSignal /= (1+Math.abs(stepCount - laststep) / 100);     //根据行走速度提高采样频率
+                    }
+                }
+
+        };
+
+        timerisStopStep.schedule(taskisSopStep,20000,  60000);    //每隔1min调整一次，在启动程序的20s后开始运行，因为要给采集初始步数留时间
+    }
+
+
+    //信号强度标记
+    private void updateSignalMarker(int MCurrentSign){
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                                //定义Maker坐标点
+                                LatLng point = new LatLng(mCurrentLantitude, mCurrentLongtitude);
+                                //构建Marker图标
+
+                                if (MCurrentSign <= -50 && MCurrentSign >= -70) {
+                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+                                            .fromResource(R.drawable.location_on_1);
+                                    //构建MarkerOption，用于在地图上添加Marker
+                                    OverlayOptions option = new MarkerOptions()
+                                            .position(point)
+                                            .icon(bitmap);
+                                    //在地图上添加Marker，并显示
+                                    baiduMap.addOverlay(option);
+                                } else if (MCurrentSign < -70 && MCurrentSign >= -85) {
+                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+                                            .fromResource(R.drawable.location_on_3);
+                                    //构建MarkerOption，用于在地图上添加Marker
+                                    OverlayOptions option = new MarkerOptions()
+                                            .position(point)
+                                            .icon(bitmap);
+                                    //在地图上添加Marker，并显示
+                                    baiduMap.addOverlay(option);
+                                } else if (MCurrentSign < -85 && MCurrentSign >= -100) {
+                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+                                            .fromResource(R.drawable.location_on_2);
+                                    //构建MarkerOption，用于在地图上添加Marker
+                                    OverlayOptions option = new MarkerOptions()
+                                            .position(point)
+                                            .icon(bitmap);
+                                    //在地图上添加Marker，并显示
+                                    baiduMap.addOverlay(option);
+                                } else if (MCurrentSign < -100) {
+                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
+                                            .fromResource(R.drawable.location_on_4);
+                                    //构建MarkerOption，用于在地图上添加Marker
+                                    OverlayOptions option = new MarkerOptions()
+                                            .position(point)
+                                            .icon(bitmap);
+                                    //在地图上添加Marker，并显示
+                                    baiduMap.addOverlay(option);
+                                }
+            }
+
+        });
+    }
+
+
+
 
 
     //设备信息与网络信息提取
@@ -484,6 +661,7 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     }
 
 
+
     //通过继承抽象类BDAbstractListener并重写其onReceieveLocation方法来获取定位数据，并将其传给MapView。
     public class MyLocationListener extends BDAbstractLocationListener  {
         @Override
@@ -527,15 +705,48 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     }
 
 
+
+//    public  class MySTEPListener implements SensorEventListener {
+//        private SensorManager StepSensorManager;        //传感器对象
+//        //注册传感器监听器方法
+//        public void registerSensorListener() {
+//            StepSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+//            StepSensorManager.registerListener(this, StepSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER),
+//                    StepSensorManager.SENSOR_DELAY_NORMAL);
+//        }
+//        // 关闭传感器监听器的方法
+//        public void unregisterSensorListener(){
+//            StepSensorManager.unregisterListener(this);
+//        }
+//        public void onSensorChanged(SensorEvent Event) {
+//            // 步行动作的触发事件发生一次，步数计数器增加一步
+//            System.out.println("步数：" +Event.sensor.getType());
+//            if (Event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
+//                stepCount++;
+//                System.out.println("步数：" + stepCount);
+//            }
+//        }
+//        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+//            // 传感器精度变化时的回调方法
+//        }
+//    }
+
+
+
+
     //自定义传感器监听器类
     public  class MyOrientationListener implements SensorEventListener{
         private SensorManager sensorManager;
+
 
         //注册传感器监听器方法
         public void registerSensorListener() {
             sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
             sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
                     SensorManager.SENSOR_DELAY_UI);
+            sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER),
+                    SensorManager.SENSOR_DELAY_FASTEST);
+
         }
 
 
@@ -547,25 +758,38 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         // 监听传感器变化事件，当传感器数值发生变化时，该方法被调用
         public void onSensorChanged(SensorEvent sensorEvent) {
 
-            // 读取传感器数值中的 x 轴方向的值
-            double x = sensorEvent.values[SensorManager.DATA_X];
-            // 判断当前 x 轴方向的值与上一次记录的值之间的差值是否超过了 1.0，如果超过了 1.0，更新当前方向为新的 x 轴方向的值。
-            if (Math.abs(x - lastX) > 1.0) {
-                mCurrentDirection = (float) x;
-            // 构造定位图层数据
-                MyLocationData  myLocationData = new MyLocationData.Builder()
-                        .accuracy(mCurrentAccracy)
-                        // 此处设置开发者获取到的方向信息，顺时针0-360
-                        .direction(mCurrentDirection)
-                        .latitude(mCurrentLantitude)
-                        .longitude(mCurrentLongtitude).build();
-                // 设置定位图层数据
-                baiduMap.setMyLocationData(myLocationData);
-            }
-            // 将当前 x 轴方向的值记录为上一次的值，用于下一次比较
-            lastX = x;
-        }
+            if(sensorEvent.sensor.getType() == Sensor.TYPE_STEP_COUNTER){
+                // 获取计步器传感器报告的总步数
+                System.out.println(sensorEvent.values[0]);
+                int totalSteps = (int) sensorEvent.values[0];
 
+                // 更新步数计数器的值
+                stepCount = totalSteps;
+
+                // 更新步数显示
+                System.out.println("步数：" + stepCount);
+            }
+            if(sensorEvent.sensor.getType() == Sensor.TYPE_ORIENTATION) {
+                // 读取传感器数值中的 x 轴方向的值
+                double x = sensorEvent.values[SensorManager.DATA_X];
+                // 判断当前 x 轴方向的值与上一次记录的值之间的差值是否超过了 1.0，如果超过了 1.0，更新当前方向为新的 x 轴方向的值。
+                if (Math.abs(x - lastX) > 1.0) {
+                    mCurrentDirection = (float) x;
+                    // 构造定位图层数据
+                    MyLocationData myLocationData = new MyLocationData.Builder()
+                            .accuracy(mCurrentAccracy)
+                            // 此处设置开发者获取到的方向信息，顺时针0-360
+                            .direction(mCurrentDirection)
+                            .latitude(mCurrentLantitude)
+                            .longitude(mCurrentLongtitude).build();
+                    // 设置定位图层数据
+                    baiduMap.setMyLocationData(myLocationData);
+                }
+                // 将当前 x 轴方向的值记录为上一次的值，用于下一次比较
+                lastX = x;
+            }
+
+        }
 
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
             // 传感器精度变化时的回调方法
@@ -676,6 +900,7 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     protected void onDestroy() {
         mLocationClient.stop();         //程序销毁时停止定位，防止消耗电量
         baiduMap.setMyLocationEnabled(false);
+//        mySTEPListener.unregisterSensorListener();
         mMapView.onDestroy();
         mMapView = null;
         super.onDestroy();

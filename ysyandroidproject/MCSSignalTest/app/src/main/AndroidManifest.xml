@@ -56,6 +56,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- 这个权限用于访问GPS定位 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- 这个权限用于使用步数传感器 -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
 
 
