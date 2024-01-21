@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+    body, html,#allmap {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        margin: 0;
+    }
+</style>
+    <script type="text/javascript" src="//api.map.baidu.com/api?type=webgl&v=1.0&ak=UviWxqA0VzgsjjHvtcQCqj65lBnZZBo5"></script>
+    <title>地图可视化平台</title>
+</head>
+<body>
+    <div id="allmap"></div>
+</body>
+</html>
+<script type="text/javascript">
+var map = new BMapGL.Map("allmap");
+{#map.setMapType(BMAP_SATELLITE_MAP);      // 设置地图类型为地球模式#}
+map.centerAndZoom(new BMapGL.Point(122.7530, 40.8517), 19);
+map.enableScrollWheelZoom(true);
+map.setMapStyleV2({
+  styleId: '6983dcb3181671e1aebd8f830f9574cc'
+});
+{#map.setHeading(64.5);#}
+{#map.setTilt(73);#}
+</script>
