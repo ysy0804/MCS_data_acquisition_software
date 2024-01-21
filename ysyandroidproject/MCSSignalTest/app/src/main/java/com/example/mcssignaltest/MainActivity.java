@@ -64,6 +64,14 @@ import com.google.android.material.snackbar.Snackbar;
 import android.animation.ObjectAnimator;
 
 
+import org.json.JSONObject;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -140,6 +148,8 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     private int collectsignaltimes=0;     //从程序运行开始采集信号的次数
     private int DurCollectSignal = 10000;           //两次采集信号的时间间隔
     private boolean isStopStep = false;
+    private static final String DJANGO_API_URL = "http://192.168.3.54:8000/receive_data/";
+
 
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -322,6 +332,11 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
 //        mySTEPListener.registerSensorListener();
         StrengthCollection();
 
+        // 调用异步任务发送数据到 Django
+        SendDataTask sendDataTask = new SendDataTask();
+
+        sendDataTask.execute(mCurrentLantitude, mCurrentLongtitude, (double)rsrpValue);
+
 
     }
 
@@ -343,49 +358,6 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
                                 rsrpValue = (int) getRsrpMethod.invoke(lteSignalStrength);
                                 ShowCellSignalStrength.setText(String.valueOf(rsrpValue) + "dBm");
 
-
-//                                //定义Maker坐标点
-//                                LatLng point = new LatLng(mCurrentLantitude, mCurrentLongtitude);
-//                                //构建Marker图标
-//
-//
-//                                if (rsrpValue > -80) {
-//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
-//                                            .fromResource(R.drawable.location_on_1);
-//                                    //构建MarkerOption，用于在地图上添加Marker
-//                                    OverlayOptions option = new MarkerOptions()
-//                                            .position(point)
-//                                            .icon(bitmap);
-//                                    //在地图上添加Marker，并显示
-//                                    baiduMap.addOverlay(option);
-//                                } else if (rsrpValue > -90 && rsrpValue <= -80) {
-//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
-//                                            .fromResource(R.drawable.location_on_3);
-//                                    //构建MarkerOption，用于在地图上添加Marker
-//                                    OverlayOptions option = new MarkerOptions()
-//                                            .position(point)
-//                                            .icon(bitmap);
-//                                    //在地图上添加Marker，并显示
-//                                    baiduMap.addOverlay(option);
-//                                } else if (rsrpValue > -100 && rsrpValue <= -90) {
-//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
-//                                            .fromResource(R.drawable.location_on_2);
-//                                    //构建MarkerOption，用于在地图上添加Marker
-//                                    OverlayOptions option = new MarkerOptions()
-//                                            .position(point)
-//                                            .icon(bitmap);
-//                                    //在地图上添加Marker，并显示
-//                                    baiduMap.addOverlay(option);
-//                                } else if (rsrpValue <= -100) {
-//                                    BitmapDescriptor bitmap = BitmapDescriptorFactory
-//                                            .fromResource(R.drawable.location_on_4);
-//                                    //构建MarkerOption，用于在地图上添加Marker
-//                                    OverlayOptions option = new MarkerOptions()
-//                                            .position(point)
-//                                            .icon(bitmap);
-//                                    //在地图上添加Marker，并显示
-//                                    baiduMap.addOverlay(option);
-//                                }
                             }
                         }
 
@@ -705,32 +677,57 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     }
 
 
+    //上传数据到服务器
+    private class SendDataTask extends AsyncTask<Double, Void, String> {
+        @Override
+        protected String doInBackground(Double... params) {
 
-//    public  class MySTEPListener implements SensorEventListener {
-//        private SensorManager StepSensorManager;        //传感器对象
-//        //注册传感器监听器方法
-//        public void registerSensorListener() {
-//            StepSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-//            StepSensorManager.registerListener(this, StepSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER),
-//                    StepSensorManager.SENSOR_DELAY_NORMAL);
-//        }
-//        // 关闭传感器监听器的方法
-//        public void unregisterSensorListener(){
-//            StepSensorManager.unregisterListener(this);
-//        }
-//        public void onSensorChanged(SensorEvent Event) {
-//            // 步行动作的触发事件发生一次，步数计数器增加一步
-//            System.out.println("步数：" +Event.sensor.getType());
-//            if (Event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
-//                stepCount++;
-//                System.out.println("步数：" + stepCount);
-//            }
-//        }
-//        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-//            // 传感器精度变化时的回调方法
-//        }
-//    }
+            mCurrentLantitude = params[0];
+            mCurrentLongtitude = params[1];
+            rsrpValue = params[2].intValue();
 
+
+
+            try {
+                JSONObject jsonBody = new JSONObject();
+                jsonBody.put("latitude", 22);
+                jsonBody.put("longitude", mCurrentLongtitude);
+                jsonBody.put("rsrpValue", rsrpValue);
+
+                OkHttpClient client = new OkHttpClient();
+
+
+
+                MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
+                RequestBody requestBody = RequestBody.create(mediaType, jsonBody.toString());
+
+
+                Request request = new Request.Builder()
+                        .url(DJANGO_API_URL)
+                        .post(requestBody)
+                        .build();
+
+
+                Response response = client.newCall(request).execute();
+                System.out.println("曾经在柏林住过一段时间");
+                return response.body().string();
+            } catch (Exception e) {
+                System.out.println("出错");
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            if (result != null) {
+                System.out.println("Response from Django: " + result);
+                // 在这里处理从 Django 接收到的响应
+            } else {
+                System.out.println("未收到回应");
+            }
+        }
+    }
 
 
 
