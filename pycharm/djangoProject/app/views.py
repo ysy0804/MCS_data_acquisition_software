@@ -51,6 +51,10 @@ def receive_data(request):
         print(request.POST)
 
         print(latitude)
+        print('\n')
+        print(longitude)
+        print('\n')
+        print(rsrp_value)
         # 在这里处理接收到的数据
         # ...
 
