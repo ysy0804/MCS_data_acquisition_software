@@ -4,12 +4,151 @@ body, html,#allmap {
         overflow: hidden;
         margin: 0;
 }
-#searchContainer {
-            position: absolute;
-            top: 10px;
-            left: 120px;
-            z-index: 9999;
+
+
+/*#map-container {*/
+/*  position: relative;*/
+/*  width: 800px;*/
+/*  height: 600px;*/
+/*}*/
+
+
+/*.search-container {*/
+/*  display: flex;*/
+/*  align-items: center;*/
+/*  max-width: 300px;*/
+/*  background-color: #f1f1f1;*/
+/*  border-radius: 20px;*/
+/*  overflow: hidden;*/
+/*  transition: max-width 0.3s ease;*/
+/*}*/
+
+/*.search-container input[type="text"] {*/
+/*  flex-grow: 1;*/
+/*  border: none;*/
+/*  padding: 10px;*/
+/*  background-color: transparent;*/
+/*  outline: none;*/
+/*}*/
+
+/*.search-container button {*/
+/*  background-color: transparent;*/
+/*  border: none;*/
+/*  padding: 10px;*/
+/*  cursor: pointer;*/
+/*}*/
+
+/*.search-container i {*/
+/*  color: #888;*/
+/*  transition: color 0.3s ease;*/
+/*}*/
+
+/*.search-container:hover {*/
+/*  max-width: 500px;*/
+/*}*/
+
+/*.search-container:hover i {*/
+/*  color: #333;*/
+/*}*/
+
+#search-container {
+  position: absolute;
+  top:50px;
+  left: 10px;
+  z-index: 9999;
+
+  /*align-items: center;*/
+   display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  gap: 10px;
+  max-width: 300px;
+  background-color: #228DBFC3;
+  border-radius: 20px;
+  overflow: hidden;
+  transition: max-width 0.3s ease;
+
 }
-#searchInput {
-        margin-right: 5px;
+
+#search-container input[type="text"] {
+  flex-grow: 1;
+  border: none;
+    grid-column: 1;
+  padding: 15px;
+  background-color: transparent;
+  outline: none;
+}
+
+#search-container button {
+  background-color: transparent;
+  border: none;
+  padding: 15px;
+  cursor: pointer;
+ grid-column: 2;
+  justify-content: center;
+}
+
+#search-container i {
+  color: #888;
+  transition: color 0.3s ease;
+}
+
+#search-container:hover {
+  max-width: 500px;
+}
+
+#search-container:hover i {
+  color: #333;
+}
+
+#search-container log{
+   margin-top: 10px;
+  background-color: white;
+  padding: 10px;
+  max-height: 200px;
+   grid-column: 1 / span 2;
+  overflow-y: auto;
+  /*position: absolute;*/
+  /*top:100px;*/
+  /*left: 10px;*/
+  /*z-index: 9999;*/
+  /*display: flex;*/
+  /*align-items: center;*/
+  /*max-width: 900px;*/
+  /*background-color: #228DBFC3;*/
+  /*border-radius: 20px;*/
+  /*overflow: hidden;*/
+  /*transition: max-width 0.3s ease;*/
+}
+
+
+#test{
+  position: absolute;
+  top:300px;
+  left: 200px;
+    display: grid;
+  grid-template-columns: 20px;
+  grid-template-rows: 20px;
+  gap: 10px;
+  z-index: 9999;
+  max-width: 300px;
+  background-color: #22852FC3;
+  border-radius:120px;
+  overflow: hidden;
+  transition: max-width 0.3s ease;
+
+}
+
+
+#test i {
+  color: #888;
+  transition: color 0.3s ease;
+}
+
+#test:hover {
+  max-width: 500px;
+}
+
+#test:hover i {
+  color: #333;
 }

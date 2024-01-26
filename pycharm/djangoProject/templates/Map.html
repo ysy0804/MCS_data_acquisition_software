@@ -5,14 +5,20 @@
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" type="text/css" href="../static/css/Map.css">
     <script type="text/javascript" src="//api.map.baidu.com/api?type=webgl&v=1.0&ak=UviWxqA0VzgsjjHvtcQCqj65lBnZZBo5"></script>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <title>地图可视化平台</title>
 </head>
 <body>
-   <div id="searchContainer">
-      <input type="text" id="searchInput" placeholder="输入地理位置名称">
-      <button type="button" onclick="search()">搜索</button>
-   </div>
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="搜索...">
+        <button id="search-button">
+          <i class="fas fa-search"></i>
+        </button>
+        <div id="log"></div>
+    </div>
+    <div id="test">
+
+    </div>
    <div id="allmap"></div>
 </body>
 </html>
