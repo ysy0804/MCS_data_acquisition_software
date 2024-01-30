@@ -26,5 +26,5 @@ urlpatterns = [
     path('Map/', views.map_view),
     # path('process_request/', views.process_request),
     path('receive_data/', views.receive_data),
-    path('Map/search_location/', views.search_location),
+
 ]

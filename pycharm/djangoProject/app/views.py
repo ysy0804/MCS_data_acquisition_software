@@ -47,21 +47,22 @@ def map_view(request):
 def receive_data(request):
     if request.method == 'POST':
         data = json.loads(request.body.decode('utf-8'))
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
+        Current_Latitude = data.get('latitude')
+        Current_Longitude = data.get('longitude')
         rsrp_value = data.get('rsrpValue')
         print(request.POST)
 
-        print(latitude)
+        print(Current_Latitude)
         print('\n')
-        print(longitude)
+        print(Current_Longitude)
         print('\n')
         print(rsrp_value)
         # 在这里处理接收到的数据
         # ...
 
         response_data = {'message': 'Data received successfully'}
-        return JsonResponse(response_data, status=200)
+        return render(request, 'Map.html', {'latitude': Current_Latitude, 'longitude': Current_Longitude})
+        # return JsonResponse(response_data, status=200)
     else:
         # 处理非 POST 请求的情况
         response_data = {
@@ -69,66 +70,4 @@ def receive_data(request):
         }
         return JsonResponse(response_data, status=400)
 
-@csrf_exempt
-# 地点检索
-def search_location(request):
-    if request.method == 'POST':
-        # 前端输入的地点名称
-        print('在发发发发柏林生活')
-        location_name = request.POST.get('location_name')
-    #
-    #     # 替换为您的百度地图API密钥
-    #     api_key = 'UviWxqA0VzgsjjHvtcQCqj65lBnZZBo5'
-    #
-    #     # 地点检索API请求URL
-    #     url = f'http://api.map.baidu.com/place/v2/search?query={location_name}&region=全国&output=json&ak={api_key}'
-    #
-    #     try:
-    #         response = requests.get(url)
-    #         data = response.json()
-    #
-    #         # 解析地点检索结果
-    #         if data['status'] == 0 and data['results']:
-    #             location = data['results'][0]
-    #             latitude = location['location']['lat']
-    #             longitude = location['location']['lng']
-    #
-    #             return render(request, 'Map.html', {'latitude': latitude, 'longitude': longitude})
-    #         else:
-    #             error_message = '未能找到该地理位置！'
-    #             print('在柏林生活')
-    #             return render(request, 'Map.html', {'error_message': error_message})
-    #
-    #     except requests.exceptions.RequestException:
-    #         error_message = '地点检索请求失败！'
-    #         print('哈哈哈哈')
-    #         return render(request, 'Map.html', {'error_message': error_message})
-    #
-    #
-    # return render(request, 'Map.html')
-        api_key = 'UviWxqA0VzgsjjHvtcQCqj65lBnZZBo5'
-        # 发送请求到百度地图API进行地理坐标转换
-        url = "https://api.map.baidu.com/place/v2/search"
-        params = {
-            "query": location_name,
-            'ak': 'UviWxqA0VzgsjjHvtcQCqj65lBnZZBo5',
-            'output': 'json',
-            'radius': '2000'
-        }
-        response = requests.get(url=url, params=params)
-        data = response.json()
-        print(data)
 
-        # 提取经纬度坐标
-
-        if data.get("status") == 0:
-            result = data.get("result", {})
-            location = result.get("location", {})
-            latitude = location.get("lat")
-            longitude = location.get("lng")
-            return JsonResponse({"latitude": latitude, "longitude": longitude})
-        else:
-            error_message = data.get("message")
-            return JsonResponse({"error_message": error_message}, status=400)
-
-    return JsonResponse({}, status=405)

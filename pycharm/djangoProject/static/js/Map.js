@@ -1,7 +1,20 @@
 var map = new BMapGL.Map("allmap");
 // map.setMapType(BMAP_SATELLITE_MAP);      // 设置地图类型为地球模式
 
-map.centerAndZoom(new BMapGL.Point(122.7530, 40.8517), 19);
+
+// 获取用户当前位置
+
+var geolocation = new BMapGL.Geolocation();
+var gc = new BMapGL.Geocoder();//创建地理编码器
+  // 开启SDK辅助定位
+geolocation.enableSDKLocation();
+geolocation.getCurrentPosition(function(result){
+
+		var latitude = result.point.lat; // 获取纬度
+		var longitude = result.point.lng; // 获取经度
+		map.centerAndZoom(result.point, 19);
+
+});
 map.enableScrollWheelZoom(true);
 // map.setMapStyleV2({
 //   styleId: '6983dcb3181671e1aebd8f830f9574cc'
@@ -10,8 +23,6 @@ var cityCtrl = new BMapGL.CityListControl();  // 添加城市列表控件
 map.addControl(cityCtrl);
 var Locate = new BMapGL.LocationControl();  // 添加城市列表控件
 map.addControl(Locate);
-
-
 
 
 // 创建地点搜索对象
@@ -52,29 +63,7 @@ searchButton.addEventListener("click", function() {
 var autoComplete = new BMapGL.Autocomplete({
   input: searchInput,
   location: map,
-  zIndex: 999,
-  onSearchComplete: function (results) {
-    // 执行地点检索完成后的自定义处理
-    // results 是地点检索的结果数组
 
-    // 获取地点检索下拉列表容器
-    let suggestionContainer = document.getElementsByClassName('tangram-suggestion')[0];
-
-    // 遍历结果数组，修改样式
-    for (let i = 0; i < results.length; i++) {
-      let suggestionItem = suggestionContainer.children[i];
-      // 对每个下拉列表项进行样式修改
-      suggestionItem.style.backgroundColor = '#232425';
-      suggestionItem.style.border = '1px solid #ccc';
-      suggestionItem.style.borderRadius = '4px';
-      suggestionItem.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
-      suggestionItem.style.padding = '8px';
-      suggestionItem.style.fontSize = '14px';
-      suggestionItem.style.color = '#262524';
-
-      // ... 添加更多样式规则 ...
-    }
-  }
 });
 
 
@@ -102,3 +91,27 @@ autoComplete.addEventListener("onconfirm", function(event) {    //鼠标点击�
 
 
 
+// // 实时标记函数
+//     function markLocation(latitude, longitude) {
+// 		var point = new BMapGL.Point(longitude, latitude);
+// 		var marker = new BMapGL.Marker(point);
+// 		map.addOverlay(marker);
+// 	}
+//
+// 	   // 使用WebSocket连接Django服务器，接收实时数据
+// 	var socket = new WebSocket("ws://your-django-server-url");
+// 	socket.onmessage = function(event) {
+// 		var data = JSON.parse(event.data);
+// 		var latitude = data.latitude;
+// 		var longitude = data.longitude;
+//
+//             // 调用实时标记函数
+// 		markLocation(latitude, longitude);
+// 	};
+
+
+ var socket = new WebSocket("ws:127.0.0.1:8000/room/hony/");
+
+ socket.onopen = function () {
+     console.log('连接成功');//成功连接上Websocket
+ };
