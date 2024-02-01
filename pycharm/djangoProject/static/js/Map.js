@@ -1,7 +1,8 @@
 var map = new BMapGL.Map("allmap");
 // map.setMapType(BMAP_SATELLITE_MAP);      // 设置地图类型为地球模式
 
-
+ var socket = new WebSocket("ws:127.0.0.1:8000/room/hony/");
+  var Androidsocket = new WebSocket("ws:127.0.0.1:8000/android-websocket/");
 // 获取用户当前位置
 
 var geolocation = new BMapGL.Geolocation();
@@ -48,6 +49,7 @@ searchButton.addEventListener("click", function() {
     var searchInput = document.getElementById("search-input");
     if(searchInput.value === "") {
         if (searchInput.style.display === "none") {
+            socket.send("hello")
             searchInput.style.display = "inline-block";
         } else {
             searchInput.style.display = "none";
@@ -91,27 +93,59 @@ autoComplete.addEventListener("onconfirm", function(event) {    //鼠标点击�
 
 
 
-// // 实时标记函数
-//     function markLocation(latitude, longitude) {
-// 		var point = new BMapGL.Point(longitude, latitude);
-// 		var marker = new BMapGL.Marker(point);
-// 		map.addOverlay(marker);
-// 	}
-//
-// 	   // 使用WebSocket连接Django服务器，接收实时数据
-// 	var socket = new WebSocket("ws://your-django-server-url");
-// 	socket.onmessage = function(event) {
-// 		var data = JSON.parse(event.data);
-// 		var latitude = data.latitude;
-// 		var longitude = data.longitude;
-//
-//             // 调用实时标记函数
-// 		markLocation(latitude, longitude);
-// 	};
+// 标记经纬度和网络信号强度
+function markLocation(latitude, longitude, signalStrength) {
+    console.log('贫道杯里是隔年的黑枣，怎么赶得上长老的红枣香甜啊');
+    var point = new BMapGL.Point(longitude, latitude);
+    var marker = new BMapGL.Marker(point);
+    map.addOverlay(marker);
+
+    var label = new BMapGL.Label(signalStrength.toString(), { offset: new BMapGL.Size(20, -10) });
+    marker.setLabel(label);
+}
 
 
- var socket = new WebSocket("ws:127.0.0.1:8000/room/hony/");
 
- socket.onopen = function () {
-     console.log('连接成功');//成功连接上Websocket
- };
+
+
+ // socket.onopen = function () {
+ //     console.log('连接成功');//成功连接上Websocket
+ // };
+
+
+socket.onopen = function(event) {
+    console.log('WebSocket连接已建立');
+    // socket.send(JSON.stringify({
+    //     'type': 'join_group',
+    //     'group_name': 'your_group_name',
+    // }));
+};
+
+
+socket.onmessage = function(event) {
+    // const data = JSON.parse(event.data);
+     console.log(event.data);
+    // markLocation(data.latitude, data.longitude, data.signal_strength);
+    //
+    //     // 标记为已接收
+    // socket.send('received');
+}
+
+
+Androidsocket.onopen= function(event) {
+    console.log('与android的WebSocket连接已建立');
+    // socket.send(JSON.stringify({
+    //     'type': 'join_group',
+    //     'group_name': 'your_group_name',
+    // }));
+};
+
+Androidsocket.onmessage = function(event) {
+    // const data = JSON.parse(event.data);
+    console.log("chdbscbsdnbc");
+     console.log(event.data);
+    // markLocation(data.latitude, data.longitude, data.signal_strength);
+    //
+    //     // 标记为已接收
+    // socket.send('received');
+}

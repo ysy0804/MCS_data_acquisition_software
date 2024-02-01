@@ -89,6 +89,9 @@ TEMPLATES = [
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        # 'CONFIG': {
+        #     'hosts': [('localhost', 6379)],
+        # },
     },
 }
 
@@ -103,7 +106,7 @@ DATABASES = {
         'NAME': 'ysydb',
         'USER': 'root',
         'PASSWORD': '210804Ysy!',
-        'HOST': 'ysy',
+        'HOST': 'localhost',
         'PORT': '3306',
     }
 }

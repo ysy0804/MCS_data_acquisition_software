@@ -3,6 +3,9 @@ from django.http import JsonResponse
 import requests
 from django.views.decorators.csrf import csrf_exempt
 import json
+from .models import LocationData
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from urllib.parse import quote
 import pymysql
 # Create your views here.
@@ -60,8 +63,19 @@ def receive_data(request):
         # 在这里处理接收到的数据
         # ...
 
-        response_data = {'message': 'Data received successfully'}
-        return render(request, 'Map.html', {'latitude': Current_Latitude, 'longitude': Current_Longitude})
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)('your_group_name', {
+            'type': 'send_data',
+            'latitude': Current_Latitude,
+            'longitude': Current_Longitude,
+            'signal_strength': rsrp_value,
+        })
+
+        Data = LocationData(latitude=Current_Latitude, longitude=Current_Longitude, signal_strength=rsrp_value)
+        Data.save()
+
+
+        return JsonResponse({'status': 'success'})
         # return JsonResponse(response_data, status=200)
     else:
         # 处理非 POST 请求的情况
