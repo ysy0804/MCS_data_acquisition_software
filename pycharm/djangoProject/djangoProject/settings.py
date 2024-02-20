@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'app.apps.AppConfig',
     'channels',
+    'dwebsocket',
 ]
 
 ASGI_APPLICATION = 'djangoProject.asgi.application'  # 上面新建的 asgi 应用
@@ -61,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
 
 ]
 
@@ -89,9 +91,6 @@ TEMPLATES = [
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        # 'CONFIG': {
-        #     'hosts': [('localhost', 6379)],
-        # },
     },
 }
 

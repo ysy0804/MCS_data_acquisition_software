@@ -11,7 +11,7 @@ class Register(models.Model):
 class LocationData(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
-    signal_strength = models.IntegerField()
+    signal_strength = models.FloatField()
     is_sent = models.BooleanField(default=False)
     is_ask = models.BooleanField(default=False)
 

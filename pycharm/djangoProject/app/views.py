@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 import requests
+from .models import LocationData
 from django.views.decorators.csrf import csrf_exempt
 import json
+from dwebsocket.decorators import accept_websocket
 from .models import LocationData
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -42,6 +44,7 @@ def map_view(request):
 #
 #         # 返回响应给 Android 客户端
 #         return JsonResponse({'status': 'success'})
+
 
 
 
@@ -85,3 +88,19 @@ def receive_data(request):
         return JsonResponse(response_data, status=400)
 
 
+
+def get_latest_locations(request):
+    locations = LocationData.objects.filter(is_ask=False)  # 获取未被处理的位置数据
+    data = [
+        {
+            'latitude': loc.latitude,
+            'longitude': loc.longitude,
+            'signalStrength': loc.signal_strength
+        }
+        for loc in locations
+    ]
+
+    # 将is_ask字段修改为True
+    locations.update(is_ask=True)
+
+    return JsonResponse({'locations': data})
