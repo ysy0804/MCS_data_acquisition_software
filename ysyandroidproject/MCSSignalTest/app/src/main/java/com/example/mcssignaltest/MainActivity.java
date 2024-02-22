@@ -57,6 +57,7 @@ import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
 import com.example.mcssignaltest.databinding.ActivityMainBinding;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
@@ -64,29 +65,40 @@ import com.google.android.material.snackbar.Snackbar;
 import android.animation.ObjectAnimator;
 
 
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
+import org.json.JSONException;
 import org.json.JSONObject;
 
+import okhttp3.FormBody;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 
 public class MainActivity extends AppCompatActivity {           //AppCompatActivity是 Activity 类的一个子类,提供了对旧版本 Android 平台的兼容性支持
     private ActivityMainBinding binding;
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();     //创建一个定位监听器类对象
+    private WebSocketClient WebClient = new WebSocketClient();
+   // private AndroidWebSocketServer WebServer = new AndroidWebSocketServer();
     private MapView mMapView = null;        //百度自定义地图控件
     private BaiduMap baiduMap;              //地图总控制器
     private boolean isFirstLocate = true;     //是否是首次定位
@@ -101,6 +113,9 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
 
     // 实例化 MyOrientationListener
     private MyOrientationListener myOrientationListener = new MyOrientationListener();
+
+
+
     //实例化MySTEPListener
 //    private MySTEPListener mySTEPListener = new MySTEPListener();
     public float mCurrentDirection;    //此刻的方向
@@ -131,15 +146,21 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     private final static String LTE_SIGNAL_STRENGTH = "getCellSignalStrengths";
     private Handler handler;       //定时器
     private Runnable runnable;
+    private Handler upload_handler;
+    private Runnable sendDataRunnable;
     private final long INTERVAL = 3000; // 每隔3秒获取一次信号强度值
+    private static final int Pass_INTERVAL = 30 * 1000; // 上传数据的时间间隔为30秒
+    private static final int Pass_DELAY = 20 * 1000; // 启动app20秒后开始上传
 
 
 
     private static final String PING_COMMAND = "/system/bin/ping";
     private static final int PING_TIMEOUT = 5; // Ping超时时间，单位为秒
-    private static final int PING_COUNT = 5;   // Ping次数
+    private static final int PING_COUNT = 2;   // Ping次数
 
     private boolean isTime = true;
+    private boolean isStartSend = false;     //是否开始上传数据
+    private boolean isWebsocketOn = false;  //是否连接websocket
     private int rsrpValue;              //网络信号强度
     private Timer timer;
     private Timer timerisStopStep;     //判断是否停驻的计时器
@@ -186,6 +207,104 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+
+        handler = new Handler(Looper.getMainLooper());
+
+        upload_handler = new Handler();
+
+
+
+        // 定义发送数据的任务
+        sendDataRunnable = new Runnable() {
+            @Override
+            public void run() {
+                SendDataTask sendDataTask = new SendDataTask();
+                sendDataTask.execute(mCurrentLantitude, mCurrentLongtitude, (double)rsrpValue);
+                handler.postDelayed(this, Pass_INTERVAL);
+            }
+        };
+
+        //开始上传按钮
+        MaterialButton  playPauseButton = findViewById(R.id.playPauseButton);
+        playPauseButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (isStartSend == false) {
+                    WebClient.start();  // 建立 WebSocket 连接
+
+                    System.out.println("开始上传数据");
+
+                    // 调用异步任务发送数据到 Django
+                    SendDataTask sendDataTask = new SendDataTask();
+                    sendDataTask.execute(mCurrentLantitude, mCurrentLongtitude, (double)rsrpValue);
+                    // 设置周期性执行发送数据的任务
+                    handler.postDelayed(sendDataRunnable, INTERVAL);
+
+
+                    playPauseButton.setIconResource(R.drawable.ic_icons_pause); // 设置为播放图标
+                    isStartSend = true;
+                } else {
+                    WebClient.closeConnection();
+                    handler.removeCallbacks(sendDataRunnable);
+                    playPauseButton.setIconResource(R.drawable.ic__pause); // 设置为暂停图标
+                    isStartSend = false;
+                }
+            }
+        });
+
+
+        //用户体验感标记
+        MaterialButton SoBadlocate = findViewById(R.id.SoBadlocate);
+        SoBadlocate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(isWebsocketOn == true){
+                    JSONObject jsonBody = new JSONObject();
+                            try {
+                                jsonBody.put("latitude", mCurrentLantitude);
+                                jsonBody.put("longitude", mCurrentLongtitude);
+                                jsonBody.put("rsrpValue", 1);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                            WebClient.SendBadtag(jsonBody.toString());
+                }
+                else{
+                    WebClient.start();  // 建立 WebSocket 连接
+                    // 延迟2秒后开始发送数据
+                upload_handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println(isWebsocketOn);
+                        if(isWebsocketOn == true){
+                            System.out.println("启动成功？");
+                            JSONObject jsonBody = new JSONObject();
+                            try {
+                                jsonBody.put("latitude", mCurrentLantitude);
+                                jsonBody.put("longitude", mCurrentLongtitude);
+                                jsonBody.put("rsrpValue", 1);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                            WebClient.SendBadtag(jsonBody.toString());
+
+                        }
+                        else {
+                            Toast.makeText(v.getContext(), "发送失败", Toast.LENGTH_SHORT).show();
+                        }
+                        WebClient.closeConnection();
+                    }
+                }, 2000);
+
+                }
+            }
+        });
+
+
+
+
+
+
         //滑动菜单布局
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBar actionBar = getSupportActionBar();
@@ -202,6 +321,7 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
                 isFirstLocate = true;     //是否是首次定位
             }
         });
+
 
         //获取卡片引用
         cardView = (MaterialCardView) findViewById(R.id.card_view);
@@ -327,15 +447,24 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         //注册监听器
         telephonyManager.listen(mListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
 
-        handler = new Handler(Looper.getMainLooper());
+
+
+
+
+
 
 //        mySTEPListener.registerSensorListener();
         StrengthCollection();
 
-        // 调用异步任务发送数据到 Django
-        SendDataTask sendDataTask = new SendDataTask();
 
-        sendDataTask.execute(mCurrentLantitude, mCurrentLongtitude, (double)rsrpValue);
+
+
+//        WebClient.start();  // 建立 WebSocket 连接
+////websocket服务器
+//        int port = 8080; // 设置服务器的端口号
+//
+//        AndroidWebSocketServer server = new AndroidWebSocketServer();
+//        server.start();
 
 
     }
@@ -554,7 +683,17 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
                     }
                 });
                 pingTask.execute();
-                Toast.makeText(this,"连接成功，平均时延: " + AverageTime + "ms", Toast.LENGTH_SHORT).show();
+
+
+                Handler show_handler = new Handler();
+
+                show_handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this,"连接成功，平均时延: " + AverageTime + "ms", Toast.LENGTH_SHORT).show();
+                    }
+                }, 3000);
+
                 break;
                 //滑动菜单
             case android.R.id.home:
@@ -633,6 +772,65 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
     }
 
 
+    //websocket服务端
+
+
+
+    //websocket客户端
+    public class WebSocketClient extends WebSocketListener {
+        private WebSocket webSocket;
+
+        public void start() {
+            OkHttpClient client = new OkHttpClient();
+            Request request = new Request.Builder().url("ws://192.168.3.54:8000/android-websocket/").build();
+            Log.d("呀ua","xc");
+            webSocket = client.newWebSocket(request, this);
+
+        }
+
+        public void sendData(String data) {
+            webSocket.send(data);
+            System.out.println("蛤蛤蛤");
+        }
+
+
+        public void SendBadtag(String data) {
+            webSocket.send(data);
+            System.out.println("信号太差");
+        }
+
+        @Override
+        public void onOpen(WebSocket webSocket, Response response) {
+            // WebSocket 连接建立
+            Log.d("WebSocket", "连接成功");
+            isWebsocketOn = true;
+            System.out.println("蛤蛤蛤");
+            // 在这里可以执行后续操作或发送消息
+        }
+
+        @Override
+        public void onMessage(WebSocket webSocket, String text) {
+            // 处理从服务器接收到的消息
+        }
+
+
+        public void closeConnection() {
+            webSocket.close(1000, "WebSocket断开连接");
+            isWebsocketOn = false;
+        }
+
+        @Override
+        public void onClosed(WebSocket webSocket, int code, String reason) {
+            // WebSocket 连接关闭
+            // WebSocket 连接关闭
+            Log.d("WebSocket", "连接关闭，code: " + code + ", reason: " + reason);
+        }
+
+        @Override
+        public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+            // 处理连接失败
+        }
+    }
 
     //通过继承抽象类BDAbstractListener并重写其onReceieveLocation方法来获取定位数据，并将其传给MapView。
     public class MyLocationListener extends BDAbstractLocationListener  {
@@ -687,19 +885,22 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
             rsrpValue = params[2].intValue();
 
 
-
             try {
                 JSONObject jsonBody = new JSONObject();
-                jsonBody.put("latitude", 22);
+                jsonBody.put("latitude", mCurrentLantitude);
                 jsonBody.put("longitude", mCurrentLongtitude);
                 jsonBody.put("rsrpValue", rsrpValue);
 
                 OkHttpClient client = new OkHttpClient();
 
 
-
                 MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
                 RequestBody requestBody = RequestBody.create(mediaType, jsonBody.toString());
+
+
+                // 发送数据给服务器
+
+                WebClient.sendData(jsonBody.toString());
 
 
                 Request request = new Request.Builder()
@@ -708,9 +909,11 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
                         .build();
 
 
-                Response response = client.newCall(request).execute();
+               Response response = client.newCall(request).execute();
                 System.out.println("曾经在柏林住过一段时间");
                 return response.body().string();
+
+
             } catch (Exception e) {
                 System.out.println("出错");
                 e.printStackTrace();
@@ -824,6 +1027,7 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         @Override
         protected Boolean doInBackground(Void... voids) {
             try {
+                // 创建进程构建器，设置Ping命令及其参数
                 ProcessBuilder processBuilder = new ProcessBuilder(
                         PING_COMMAND,
                         "-c",
@@ -904,4 +1108,6 @@ public class MainActivity extends AppCompatActivity {           //AppCompatActiv
         //在activity执行onDestroy时执行mMapView.onDestroy()，实现地图生命周期管理
     }
 }
+
+
 

@@ -59,7 +59,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- 这个权限用于使用步数传感器 -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-
+    <!-- 这个权限用于执行Wi-Fi扫描 -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
 
 </manifest>

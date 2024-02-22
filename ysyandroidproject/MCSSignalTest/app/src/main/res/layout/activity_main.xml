@@ -183,6 +183,7 @@
 
                     <!-- 上传控制按钮 -->
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/playPauseButton"
                         android:layout_width="62dp"
                         android:layout_height="72dp"
                         android:layout_marginLeft="48dp"
@@ -190,14 +191,15 @@
                         android:backgroundTint="#BF7ED321"
                         app:cardElevation="20dp"
                         app:cornerRadius="36dp"
-                        app:icon="@drawable/ic_icons_pause"
+                        app:icon="@drawable/ic__pause"
                         app:iconGravity="textStart"
                         app:iconPadding="0.5dp"
-                        app:iconSize="25dp"
+                        app:iconSize="30dp"
                         app:shapeAppearanceOverlay="@style/RoundedButtonShape" />
 
                     <!-- 标记按钮 -->
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/SoBadlocate"
                         android:layout_width="62dp"
                         android:layout_height="72dp"
                         android:layout_marginLeft="182dp"

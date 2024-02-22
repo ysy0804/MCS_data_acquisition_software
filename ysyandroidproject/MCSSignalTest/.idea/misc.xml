@@ -4,9 +4,17 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" value="0.27589743589743587" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic__pause.xml" value="0.264" />
         <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_explore_dirct.xml" value="0.2462962962962963" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_icons_pause.xml" value="0.184375" />
         <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_launcher_background.xml" value="0.27589743589743587" />
-        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/layout/activity_main.xml" value="0.4" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_location_on_1.xml" value="0.15260416666666668" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_location_on_3.xml" value="0.15260416666666668" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_pause.xml" value="0.15572916666666667" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_signal_cellular_connected_no_internet.xml" value="0.15572916666666667" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/ic_startSend.xml" value="0.15260416666666668" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/drawable/play_arrow-24px.xml" value="0.15572916666666667" />
+        <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/layout/activity_main.xml" value="0.3489583333333333" />
         <entry key="..\:/ysyandroidproject/MCSSignalTest/app/src/main/res/menu/toolbar.xml" value="0.2604166666666667" />
       </map>
     </option>
