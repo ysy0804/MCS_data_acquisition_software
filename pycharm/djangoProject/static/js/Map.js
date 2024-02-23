@@ -196,8 +196,6 @@ function markLocation(latitude, longitude, signalStrength) {
           });
       }
 
-
-
      // marker.addEventListener('mouseover', function() {
      //    var infoWindow = new BMapGL.InfoWindow(signalStrength.toString(), { offset: new BMapGL.Size(20, -10) });
      //    marker.openInfoWindow(infoWindow);
