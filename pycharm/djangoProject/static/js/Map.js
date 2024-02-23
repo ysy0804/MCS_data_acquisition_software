@@ -145,6 +145,9 @@ function markLocation(latitude, longitude, signalStrength) {
   };
     }
 
+
+
+
     if(signalStrength < -70 && signalStrength >= -85){
         var markerOptions = {
         icon: createGradientIcon('#fca106'), // 设置标记的图标，可自定义颜色
