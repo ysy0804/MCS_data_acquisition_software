@@ -53,7 +53,7 @@ searchButton.addEventListener("click", function() {
     if(searchInput.value === "") {
         if (searchInput.style.display === "none") {
             // socket.send("hello")
-            Androidsocket.send("ekkk")
+
             searchInput.style.display = "inline-block";
         } else {
             searchInput.style.display = "none";
@@ -96,45 +96,122 @@ autoComplete.addEventListener("onconfirm", function(event) {    //鼠标点击�
 	}
 
 
+//自定义标记
+function createGradientIcon(color) {
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  var radius = 10;
+
+  canvas.width = radius * 2;
+  canvas.height = radius * 2;
+
+  var gradient = ctx.createRadialGradient(radius, radius, 0, radius, radius, radius);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(1, color);
+
+  ctx.arc(radius, radius, radius, 0, Math.PI * 2, false);
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  return new BMapGL.Icon(canvas.toDataURL(), new BMapGL.Size(radius * 2, radius * 2), {
+    imageSize: new BMapGL.Size(radius * 2, radius * 2),
+    anchor: new BMapGL.Size(radius, radius)
+  });
+}
+
+
+
+// 创建五角星图标对象
+var starIcon = new BMapGL.Icon('static/img/ffgg.png', new BMapGL.Size(20, 20));
+
+
+
 
 // 标记经纬度和网络信号强度
 function markLocation(latitude, longitude, signalStrength) {
-    console.log('贫道杯里是隔年的黑枣，怎么赶得上长老的红枣香甜啊');
-    //console.log(latitude);
-    var point = new BMapGL.Point(longitude, latitude);
-    var marker = new BMapGL.Marker(point);
-    map.addOverlay(marker);
 
-        // 绑定鼠标悬停事件
-    // marker.addEventListener('mouseover', function(e) {
-    //   var signalStrength = e.signalStrength;
-    //   var infoWindow = new BMapGL.InfoWindow('Signal Strength: ' + signalStrength);
-    //   this.openInfoWindow(infoWindow);
-    // });
-    //
+    //console.log(latitude);
+    // var point = new BMapGL.Point(longitude, latitude);
+    // var marker = new BMapGL.Marker(point);
     // map.addOverlay(marker);
 
+    var point = new BMapGL.Point(longitude, latitude);
 
 
-     marker.addEventListener('mouseover', function() {
-        var infoWindow = new BMapGL.InfoWindow(signalStrength.toString(), { offset: new BMapGL.Size(20, -10) });
-        marker.openInfoWindow(infoWindow);
-      });
+    if(signalStrength <= -50 && signalStrength >= -70){
+        var markerOptions = {
+        icon: createGradientIcon('#FF0000'), // 设置标记的图标，可自定义颜色
+        offset: new BMapGL.Size(0, 0) // 设置标记的偏移量
+  };
+    }
 
-      marker.addEventListener('mouseout', function() {
-        map.closeInfoWindow(); // 关闭InfoWindow
-      });
+    if(signalStrength < -70 && signalStrength >= -85){
+        var markerOptions = {
+        icon: createGradientIcon('#fca106'), // 设置标记的图标，可自定义颜色
+        offset: new BMapGL.Size(0, 0) // 设置标记的偏移量
+  };
+    }
+
+    if(signalStrength < -85 && signalStrength >= -100){
+        var markerOptions = {
+        icon: createGradientIcon('#41ae3c'), // 设置标记的图标，可自定义颜色
+        offset: new BMapGL.Size(0, 0) // 设置标记的偏移量
+  };
+    }
+
+
+    if(signalStrength < -100){
+
+        var markerOptions = {
+        icon: createGradientIcon('#0f95b0'), // 设置标记的图标，可自定义颜色
+        offset: new BMapGL.Size(0, 0) // 设置标记的偏移量
+  };
+    }
+
+
+    if(signalStrength >= 1){
+        console.log("进入");
+        // var markerOptions = {
+        //  icon: starIcon,
+        //  offset: new BMapGL.Size(0, 0) // 设置标记的偏移量
+        // };
+
+    }
+
+
+      var marker = new BMapGL.Marker(point, markerOptions);
+      map.addOverlay(marker);
+
+      if(signalStrength < 0) {
+          marker.addEventListener('mouseover', function () {
+              var infoWindow = new BMapGL.InfoWindow(signalStrength.toString(), {offset: new BMapGL.Size(20, -10)});
+              marker.openInfoWindow(infoWindow);
+          });
+
+          marker.addEventListener('mouseout', function () {
+              map.closeInfoWindow(); // 关闭InfoWindow
+          });
+      }
 
 
 
-    // var label = new BMapGL.Label(signalStrength.toString(), { offset: new BMapGL.Size(20, -10) });
-    // marker.setLabel(label);
+     // marker.addEventListener('mouseover', function() {
+     //    var infoWindow = new BMapGL.InfoWindow(signalStrength.toString(), { offset: new BMapGL.Size(20, -10) });
+     //    marker.openInfoWindow(infoWindow);
+     //  });
+     //
+     //  marker.addEventListener('mouseout', function() {
+     //    map.closeInfoWindow(); // 关闭InfoWindow
+     //  });
+
+
+
 }
 
 
 Androidsocket.onopen= function(event) {
     console.log('与android的WebSocket连接已建立');
-    Androidsocket.send("ekkk")
+
     // socket.send(JSON.stringify({
     //     'type': 'join_group',
     //     'group_name': 'your_group_name',
@@ -143,7 +220,7 @@ Androidsocket.onopen= function(event) {
 
 Androidsocket.onmessage = function(event) {
     // const data = JSON.parse(event.data);
-    console.log("chdbscbsdnbc");
+    // console.log("chdbscbsdnbc");
     console.log(event.data);
     // markLocation(data.latitude, data.longitude, data.signal_strength);
     //

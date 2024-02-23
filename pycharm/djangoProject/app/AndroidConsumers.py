@@ -24,7 +24,13 @@ class AndroidComsumers(WebsocketConsumer):
          # web_consumer.scope = self.scope  # 设置 Web 客户端消费者的 scope
          # # web_consumer.connect()  # 建立 WebSocket 连接
          # web_consumer.receive(text_data)  # 将数据推送给 Web 客户端
-         self.send_to_js(text_data)
+         message = json.loads(text_data)
+         Current_Latitude = message.get('latitude')
+         Current_Longitude = message.get('longitude')
+         rsrp_value = message.get('rsrpValue')
+         Data = LocationData(latitude=Current_Latitude, longitude=Current_Longitude, signal_strength=rsrp_value)
+         Data.save()
+        # self.send_to_js(text_data)
 
      def send_to_js(self, data):
          print("哈哈哈哈哈哈哈")

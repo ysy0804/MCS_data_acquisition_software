@@ -80,7 +80,7 @@ class MyConsumer(WebsocketConsumer):
                 ]
                 locations.update(is_ask=True)
                 self.send(text_data=json.dumps({'locations': data}))
-                time.sleep(20)  # 5秒后再次查询
+                time.sleep(10)  # 5秒后再次查询
 
     def send_data(self, event):
         print("hjcbjdbsjcbsdbch")

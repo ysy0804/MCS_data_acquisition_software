@@ -74,8 +74,8 @@ def receive_data(request):
             'signal_strength': rsrp_value,
         })
 
-        Data = LocationData(latitude=Current_Latitude, longitude=Current_Longitude, signal_strength=rsrp_value)
-        Data.save()
+        # Data = LocationData(latitude=Current_Latitude, longitude=Current_Longitude, signal_strength=rsrp_value)
+        # Data.save()
 
 
         return JsonResponse({'status': 'success'})
