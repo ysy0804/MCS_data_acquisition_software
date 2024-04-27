@@ -1,0 +1,2 @@
+# MCS_data_acquisition_software
+移动群智感知数据采集软件，用于采集蜂窝网络信号强度等信息。
