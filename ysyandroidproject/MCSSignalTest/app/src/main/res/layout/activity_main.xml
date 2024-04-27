@@ -39,14 +39,6 @@
                 tools:ignore="MissingConstraints" />
 
 
-            <com.google.android.material.appbar.AppBarLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                    <!-- 添加你的工具栏或标题栏等内容 -->
-
-            </com.google.android.material.appbar.AppBarLayout>
-
 
 
 
@@ -166,11 +158,22 @@
                         android:id="@+id/CellSignal"
                         android:layout_width="90dp"
                         android:layout_height="34dp"
-                        android:layout_marginLeft="140dp"
+                        android:layout_marginLeft="130dp"
                         android:layout_marginTop="65dp"
                         android:padding="5dp"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
+
+                    <!-- 显示信号强度 -->
+<!--                    <TextView-->
+<!--                        android:layout_width="70dp"-->
+<!--                        android:layout_height="34dp"-->
+<!--                        android:layout_marginLeft="190dp"-->
+<!--                        android:layout_marginTop="65dp"-->
+<!--                        android:padding="5dp"-->
+<!--                        android:text="dBm"-->
+<!--                        android:textColor="#FFFFFF"-->
+<!--                        android:textSize="16sp" />-->
 
                     <!-- 分割线 -->
                     <View
@@ -256,14 +259,114 @@
     </FrameLayout>
 
     <!-- 滑动菜单 -->
-    <TextView
-        android:id="@+id/EquipMessList"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/EquipMessListshow"
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="260dp"
         android:layout_height="400dp"
         android:layout_gravity="start"
         android:textColor="#000000"
-        android:background="#BFFFFFFF"
-        android:textSize="15sp" />
+        app:cardBackgroundColor="#BFFFFFFF"
+        android:textSize="15sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:id="@+id/EquipMessList"
+                android:layout_width="200dp"
+                android:layout_height="220dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginTop="5dp"
+                android:padding="5dp"
+                android:textColor="#000000"
+                android:textSize="16sp" />
+
+
+            <View
+                android:id="@+id/locationt1ip1"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginTop="250dp"
+                android:background="@drawable/location_on_1"
+                />
+            <TextView
+                android:layout_width="160dp"
+                android:layout_height="34dp"
+                android:layout_marginLeft="40dp"
+                android:layout_marginTop="249dp"
+                android:padding="5dp"
+                android:text=": 大于-60dBm"
+                android:textColor="#000000"
+                android:textSize="16sp" />
+
+            <View
+                android:id="@+id/locationt1ip2"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginTop="287dp"
+                android:background="@drawable/location_on_3"
+                />
+            <TextView
+                android:layout_width="220dp"
+                android:layout_height="34dp"
+                android:layout_marginLeft="40dp"
+                android:layout_marginTop="286dp"
+                android:padding="5dp"
+                android:text=": -60dBm ~ -80dBm"
+                android:textColor="#000000"
+                android:textSize="16sp" />
+
+            <View
+                android:id="@+id/locationt1ip3"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginTop="323dp"
+                android:background="@drawable/location_on_2"
+                />
+            <TextView
+                android:layout_width="220dp"
+                android:layout_height="34dp"
+                android:layout_marginLeft="40dp"
+                android:layout_marginTop="322dp"
+                android:padding="5dp"
+                android:text=": -80dBm ~ -100dBm"
+                android:textColor="#000000"
+                android:textSize="16sp" />
+
+            <View
+                android:id="@+id/locationt1ip4"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginTop="358dp"
+                android:background="@drawable/location_on_4"
+                />
+            <TextView
+                android:layout_width="220dp"
+                android:layout_height="34dp"
+                android:layout_marginLeft="40dp"
+                android:layout_marginTop="357dp"
+                android:padding="5dp"
+                android:text=": 小于-100dBm"
+                android:textColor="#000000"
+                android:textSize="16sp" />
+
+
+        </RelativeLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+
+
+
 
 
 </androidx.drawerlayout.widget.DrawerLayout>
